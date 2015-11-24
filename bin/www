@@ -1,0 +1,487 @@
+#!/usr/bin/env nodey
+var debug = require('debug')('gagetalk_node');
+var app = require('../app');
+const
+    fs = require('fs'),
+    http = require('http'),
+    https = require('https'),
+    socketio = require('socket.io');
+var connection = require('../database/mysql_pool');
+var script_func = require('../global_func/script_func');
+
+
+app.set('port', process.env.PORT || 3000);
+
+var app_soc = http.createServer(app).listen(app.get('port'), function() {
+    // debug('Express server listening on port ' + server.address().port);
+    console.log('Express server listening on port ' + app_soc.address().port);
+});
+
+
+var credentials = {key: fs.readFileSync('ssl/my_key.pem'), cert: fs.readFileSync('ssl/my_cert.pem')};
+var ssl_server = https.createServer(credentials, app);
+    ssl_server.listen(app.get('port') + 1, function(req, res){
+        console.log('Express server listening on port ' + ssl_server.address().port);
+        debug('Express ssl server listening on port ' + ssl_server.address().port);
+    });
+
+/*
+//웹 서버에 소켓 서버 binding하고 실행
+var app_soc = http.createServer(server).listen(app.get('port'), function () {
+    console.log('socket server running at http://127.0.0.1:' + app.get('port'));
+});
+*/
+
+function userJoined(user) {
+    Object.keys(socketsOfClients).forEach(function(sId) {
+        // io.sockets.sockets[sId].emit('userJoined', user);
+    });
+    var size = Object.size(socketsOfClients);
+    console.log("socket clients added : " + size);
+    size = Object.size(clientsName);
+    console.log("clients added : " + size);
+    for(var key in clientsName){
+        console.log("    user - " + key);
+    }
+
+}
+
+function userLeft() {
+    // io.sockets.emit('userLeft', user);
+    var size = Object.size(socketsOfClients);
+    console.log("socket clients left : " + size);
+    size = Object.size(clientsName);
+    console.log("clients left : " + size);
+    for(var key in clientsName){
+        console.log("    user - " + key);
+    }
+}
+
+function ownerJoined(owner) {
+    Object.keys(socketsOfClients).forEach(function(sId) {
+        io.sockets.connected[sId].emit('ownerJoined', owner);
+    });
+    var size = Object.size(socketsOfOwners);
+    console.log("socket owner added : " + size);
+    size = Object.size(ownerMarketName);
+    console.log("owners added : " + size);
+    for(var key in ownerMarketName){
+        console.log("    owner - " + key);
+    }
+
+}
+
+function ownerLeft() {
+    // io.sockets.emit('ownerLeft', mar_id);
+    var size = Object.size(socketsOfOwners);
+    console.log("socket owner left : " + size);
+    size = Object.size(ownerMarketName);
+    console.log("owner left : " + size);
+    for(var key in ownerMarketName){
+        console.log("    market - " + key);
+    }
+}
+
+function cusEmitLastChatReadNum(socketId, cus_id){
+    // emit the last greatest chat number
+    var sql = "select num from chat where cus_id = ? and sender != ? order by num desc limit 1";
+    connection.query(sql, [cus_id, cus_id], function(err, rows){
+        if(err){throw err;}
+        else{
+            if(rows[0].num == "NULL" || rows[0].num == undefined){
+                console.log("id : " + cus_id + "'s last chat num is null so send 0");
+                rows[0].num = 0;
+            }else{
+                console.log("id : " + cus_id + "'s last chat num is " + rows[0].num);
+            }
+            // emit itself last chat num
+            if(io.sockets.connected[socketId]!=null) {
+                io.sockets.connected[socketId].emit('my_chat_num', rows[0].num);
+            }
+        }
+    });
+}
+
+function ownerEmitLastChatReadNum(socketId, mar_id){
+    var sql = "select num from chat where mar_id = ? and sender != ? order by num desc limit 1";
+    connection.query(sql, [mar_id, mar_id], function(err, rows){
+        if(err){throw err;}
+        else{
+            if(rows[0].num == "NULL" || rows[0].num == undefined){
+                console.log("id : " + mar_id + "'s last chat num is null so send 0");
+                rows[0].num = 0;
+            }else{
+                console.log("id : " + mar_id + "'s last chat num is " + rows[0].num);
+            }
+            // emit itself last chat num
+            io.sockets.connected[socketId].emit('my_chat_num', rows[0].num);
+        }
+    });
+}
+
+
+
+ // 소켓 관련
+app_soc.on('request', function (request, response) {
+    // console.log('requestNum = ' + requestNum++);
+});
+app_soc.on('close', function(){
+    console.log('close');
+});
+
+Object.size = function(obj) {
+    var size = 0, key;
+    for (key in obj) {
+        if (obj.hasOwnProperty(key)) size++;
+    }
+    return size;
+};
+
+// 웹 소캣 서버 생성
+var io = socketio.listen(app_soc, { log: true });
+// Customer socket variables
+var clientsMap = {};
+var clientsName = {};
+var socketsOfClients = {};
+// Owner socket variables
+var ownersMap = {};
+var ownerMarketName = {};
+var socketsOfOwners = {};
+
+// 소켓 세션 사용
+io.sockets.on('connection', function(socket){
+    console.log("connection is on : " + socket.id);
+    /*socket.id = shortid.generate();*/
+
+    socket.on('login', function(user){
+        console.log("###### USER : " + JSON.stringify(user));
+        console.log("###### START SOCKET ID : " + socket.id);
+        // if(clientsMap[user.email] === undefined){
+        // client doesn't exists in socket list so add it
+        console.log("new socket id : " + socket.id);
+        console.log("user : " + user.login);
+        // clientsMap[user.email] = socket.id;
+
+        // customer login
+        if(user.login == "customer"){
+            clientsName[user.id] = user.name;
+            if(!clientsMap[user.id]) {
+                console.log("    make new user_name arr!!!!!!!!");
+                clientsMap[user.id] = [];
+            }
+            console.log("############CUSTOMER PUSH#################");
+            clientsMap[user.id].push(socket.id);
+            socketsOfClients[socket.id] = user.id;
+            userJoined(user.id);
+            // select max number of chat table for current customer
+            // var sql = "select max(num) as num from chat where cus_id = ? and sender != cus_id";
+            cusEmitLastChatReadNum(socket.id, user.id);
+
+        }
+        // owner login
+        else if(user.login == "owner"){
+            console.log("user.mar_id :" + user.mar_id);
+            console.log("user.mar_name :" + user.mar_name);
+            ownerMarketName[user.mar_id] = user.mar_name;
+            if(!ownersMap[user.mar_id]) {
+                console.log("make new mar_name arr!!!!!!!!");
+                ownersMap[user.mar_id] = [];
+            }
+            console.log("############OWNER PUSH#################");
+            ownersMap[user.mar_id].push(socket.id);
+            socketsOfOwners[socket.id] = user.mar_id;
+            ownerJoined(user.mar_id);
+            // select max number of chat table for current owner
+            ownerEmitLastChatReadNum(socket.id, user.mar_id);
+        }
+    });
+
+    // disconnect
+    socket.on('disconnect', function(){
+        var cus_id = socketsOfClients[socket.id];
+        var mar_id = socketsOfOwners[socket.id];
+        // customer disconnect
+        if(cus_id){
+            console.log("disconnect cus_id  : " + cus_id);
+            delete socketsOfClients[socket.id];
+            if(clientsMap[cus_id]){
+                if(Object.size(clientsMap[cus_id]) == 1){
+                    console.log("client is only one so delete all");
+                    delete clientsMap[cus_id];
+                    delete clientsName[cus_id];
+                }
+                else{
+                    for(var i = 0; i < clientsMap[cus_id].length; i++) {
+                        if(clientsMap[cus_id][i] === socket.id) {
+                            // clientsMap[user_email].splice(i, 1);
+                            console.log("delete clientsMap : " + clientsMap[cus_id][i]);
+                            delete clientsMap[cus_id][i];
+                        }
+                    }
+                }
+            }
+            userLeft();
+        }
+        // owner disconnect
+        else if(mar_id){
+            console.log("disconnect owner, mar_id : " + mar_id);
+            delete socketsOfOwners[socket.id];
+            if(ownersMap[mar_id]){
+                if(Object.size(ownersMap[mar_id]) == 1){
+                    console.log("owner is only one so delete all");
+                    delete ownersMap[mar_id];
+                    delete ownerMarketName[mar_id];
+                }
+                else{
+                    for(var i = 0; i < ownersMap[mar_id].length; i++){
+                        if(ownersMap[mar_id][i] == socket.id){
+                            console.log("delete ownersMap : " + ownersMap[mar_id][i]);
+                            delete ownersMap[mar_id][i];
+                        }
+                    }
+                }
+            }
+            ownerLeft();
+        }
+    });
+
+    // msg : customer => market
+    socket.on('evt_msg_owner', function(owner, chat){
+        console.log("socket id : " + socket.id);
+
+        var cus_id = socketsOfClients[socket.id];
+        var cus_name = clientsName[cus_id];
+        var mar_id = owner.mar_id;
+        var mar_name = owner.mar_name;
+
+        if(cus_id != undefined && mar_id != undefined && owner != undefined && chat != undefined) {
+            console.log("    ########## MSG TO OWNER : " + JSON.stringify(owner));
+            console.log("sender is cus_id : " + cus_id);
+            console.log("receiver - " + "mar_id : " + mar_id);
+
+            if (chat.send_date == "") {
+                // send_date will be filled empty every time
+                var date = script_func.convertUTFDateToLocalDate(new Date());
+                chat.send_date = date.toISOString().substr(0, 19).replace('T', ' ');
+            }
+
+            if (cus_id == undefined) {
+                // send not logged in message
+                io.sockets.connected[socket.id].emit('not_logged_in');
+            }
+            else {
+                // update chatroom database
+                var sql = "update chatroom set read_msg = 0, message = ?, path = ?, send_date =?, sender =? where mar_id=? and cus_id =?";
+                connection.query(sql, [chat.message, chat.path, chat.send_date, cus_id, owner.mar_id, cus_id], function (err) {
+                    if (err) {throw err;}
+                    else {
+                        console.log("update chatroom success - " + "message : " + chat.message + ", path : " + chat.path + ", send_date : "
+                            + chat.send_date + ", sender : " + cus_id + ", mar_id : " + owner.mar_id + ", cus_id : " + cus_id);
+                    }
+                });
+                // insert chat database
+                var sql = "insert into chat" +
+                    "(num, mar_id, mar_name, cus_id, cus_name, message, type, path, send_date, read_msg, sender) values " +
+                    "(null, ?,?,?,?,?,?,?,?,?,?)";
+                connection.query(sql,
+                    [mar_id, mar_name, cus_id, cus_name, chat.message, chat.type, chat.path, chat.send_date, 0, cus_id],
+                    function (err, info) {
+                        if (err) {throw err;}
+                        else {
+                            console.log("insert chat success - info.id : " + info.insertId + ", message : " + chat.message + ", path : " + chat.path + ", send_date : "
+                                + chat.send_date + ", sender : " + cus_id + ", mar_id : " + owner.mar_id + ", cus_id : " + cus_id);
+
+                            chat.num = info.insertId;
+
+                            // send message to customer self
+                            if (clientsMap[cus_id]) {
+                                for (var i in clientsMap[cus_id]) {
+                                    console.log("customer socket : " + clientsMap[cus_id]);
+                                    if (clientsMap[cus_id][i] != undefined) {
+                                        var clients = {
+                                            room: owner.mar_id, // this is needed to distinguish room of chat for it's own
+                                            cus_id: cus_id,
+                                            cus_name: clientsName[cus_id]
+                                        };
+                                        io.sockets.connected[clientsMap[cus_id][i]].emit('message_my', clients, chat);
+                                    }
+                                }
+                            }
+                            // send message to market
+                            if (ownersMap[owner.mar_id]) {
+                                for (var i in ownersMap[owner.mar_id]) {
+                                    console.log("owner socket : " + ownersMap[owner.mar_id]);
+                                    if (ownersMap[owner.mar_id][i] != undefined) {
+                                        var clients = {
+                                            cus_id: cus_id,
+                                            cus_name: clientsName[cus_id]
+                                        };
+                                        io.sockets.connected[ownersMap[owner.mar_id][i]].emit('message_peers', clients, chat);
+                                    }
+                                }
+                            }
+                        }
+                });
+            }
+        }else{
+            if(cus_id == undefined) {console.log("cus_id is undefined");}
+            if(mar_id == undefined) {console.log("mar_id is undefined");}
+            if(owner == undefined) {console.log("owner is undefined");}
+            if(chat == undefined) {console.log("chat is undefined");}
+        }
+    });
+
+    // msg : market => customer
+    socket.on('evt_msg_customer', function(customer, chat){
+        var sender;
+        console.log("socket id : " + socket.id);
+        var mar_id = socketsOfOwners[socket.id];
+
+        var mar_name = ownerMarketName[mar_id];
+        var cus_id = customer.cus_id;
+        var cus_name = clientsName[cus_id];
+
+        if(mar_id != undefined && cus_id != undefined && customer != undefined && chat != undefined){
+            console.log("    ########## MSG TO CUSTOMER : " + JSON.stringify(customer));
+            console.log("sender is owner : " + mar_id);
+            console.log("receiver - " + "id : " + cus_id + ", name : " + cus_name);
+
+            if(chat.send_date == ""){
+                // send_date will be filled empty every time
+                var date = script_func.convertUTFDateToLocalDate(new Date());
+                chat.send_date = date.toISOString().substr(0, 19).replace('T', ' ');
+                console.log("send date : " + chat.send_date);
+            }
+
+            // update chatroom database
+            var sql = "update chatroom set read_msg = 0, message = ?, path = ?, send_date =?, sender =? where mar_id=? and cus_id =?";
+            connection.query(sql, [chat.message, chat.path, chat.send_date, mar_id, mar_id, customer.cus_id], function(err){
+                if(err){throw err;}
+                else{
+                    console.log("update success - " + "message : " + chat.message + ", path : " + chat.path + ", send_date : "
+                        + chat.send_date + ", sender : " + customer.cus_id + ", mar_id : " + mar_id + ", cus_id : " + customer.cus_id);
+                }
+            });
+
+            if(mar_id == undefined){
+                // send not logged in message
+                io.sockets.connected[socket.id].emit('not_logged_in');
+            }
+            else{
+                // send message to market self
+                if(ownersMap[mar_id]) {
+                    for (var i in ownersMap[mar_id]){
+                        console.log("owner socket : " + ownersMap[mar_id]);
+                        if(ownersMap[mar_id][i] != undefined) {
+                            var owner = {
+                                room : customer.cus_id, // this is needed to distinguish room of chat for it's own
+                                mar_id : mar_id,
+                                mar_name : ownerMarketName[mar_id]
+                            };
+                            io.sockets.connected[ownersMap[mar_id][i]].emit('message_my', owner, chat);
+                        }
+                    }
+                }
+                // send message to customer
+                if(clientsMap[customer.cus_id]){
+                    // insert chat database
+                    var sql = "insert into chat" +
+                        "(num, mar_id, mar_name, cus_id, cus_name, message, type, path, send_date, read_msg, sender) values " +
+                        "(null, ?,?,?,?,?,?,?,?,?,?)";
+                    connection.query(sql,
+                        [mar_id, mar_name, cus_id, cus_name, chat.message, chat.type, chat.path, chat.send_date, 0, mar_id],
+                        function(err, info){
+                            if(err){throw err;}
+                            else{
+                                console.log("insert chat success - info.id : " + info.insertId + ", message : " + chat.message + ", path : " + chat.path + ", send_date : "
+                                    + chat.send_date + ", sender : " + cus_id + ", mar_id : " + mar_id + ", cus_id : " + cus_id);
+
+                                // include num into chat variable
+                                chat.num = info.insertId;
+                                for (var i in clientsMap[customer.cus_id]) {
+                                    console.log("customer socket : " + clientsMap[customer.cus_id]);
+                                    if(clientsMap[customer.cus_id][i] != undefined){
+                                        var owner = {
+                                            mar_id : mar_id,
+                                            mar_name : ownerMarketName[mar_id]
+                                        };
+                                        io.sockets.connected[clientsMap[customer.cus_id][i]].emit('message_peers', owner, chat);
+                                    }
+                                }
+                            }
+                    });
+                }
+            }
+        }else{
+            if(cus_id == undefined) {console.log("cus_id is undefined");}
+            if(mar_id == undefined) {console.log("mar_id is undefined");}
+            if(customer == undefined) {console.log("customer is undefined");}
+            if(chat == undefined) {console.log("chat is undefined");}
+        }
+    });
+
+    // customer read_msg => owner
+    socket.on('evt_customer_read_msg', function(mar_id){
+        var cus_id = socketsOfClients[socket.id];
+        if(mar_id != undefined && cus_id != undefined) {
+            console.log("evt_customer_read_msg - cus_id : " + cus_id + ", mar_id : " + mar_id);
+            // check if last read_msg status is 0
+            var sql = "select read_msg from chat where read_msg = 0 and mar_id = ? and cus_id = ? and sender = ? order by num limit 1";
+            connection.query(sql, [mar_id, cus_id, mar_id], function (err, rows) {
+                if (err) {throw err;}
+                else {
+                    if (rows.length != 0) {
+                        // update chatroom
+                        sql = "update chatroom set read_msg=1 where mar_id=? and cus_id=? and sender=?";
+                        connection.query(sql, [mar_id, cus_id, mar_id]);
+                        // update chat
+                        sql = "update chat set read_msg=1 where mar_id=? and cus_id=? and read_msg=0 and sender=?";
+                        connection.query(sql, [mar_id, cus_id, mar_id]);
+                        // send message to market
+                        if (ownersMap[mar_id]) {
+                            for (var i in ownersMap[mar_id]) {
+                                console.log("owner socket : " + ownersMap[mar_id]);
+                                if (ownersMap[mar_id][i] != undefined) {
+                                    io.sockets.connected[ownersMap[mar_id][i]].emit('customer_read_msg', cus_id);
+                                }
+                            }
+                        }
+
+                    }
+                }
+            });
+        }
+    });
+
+    // owner read_msg => customer
+    socket.on('evt_owner_read_msg', function(cus_id){
+        var mar_id = socketsOfOwners[socket.id];
+        if(mar_id != undefined && cus_id != undefined){
+            console.log("evt_read_msg_customer - mar_id : " + mar_id + ", cus_id : " + cus_id);
+            var sql = "select read_msg from chat where read_msg = 0 and mar_id = ? and cus_id = ? and sender = ? order by num limit 1";
+            connection.query(sql, [mar_id, cus_id, cus_id], function(err, rows){
+                if(err){throw err;}
+                else{
+                    if(rows.length != 0){
+                        // update chatroom
+                        sql = "update chatroom set read_msg=1 where mar_id=? and cus_id=? and sender=?";
+                        connection.query(sql, [mar_id, cus_id, cus_id]);
+                        // update chat
+                        sql = "update chat set read_msg = 1 where mar_id = ? and cus_id =? and sender = ? and read_msg = 0";
+                        connection.query(sql, [mar_id, cus_id, cus_id]);
+                        // send message to customer
+                        if(clientsMap[cus_id]) {
+                            for (var i in clientsMap[cus_id]) {
+                                console.log("customer socket : " + clientsMap[cus_id]);
+                                if (clientsMap[cus_id][i] != undefined) {
+                                    io.sockets.connected[clientsMap[cus_id][i]].emit('owner_read_msg', mar_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+});
+

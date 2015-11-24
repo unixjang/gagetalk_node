@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="description" content=""/>
+    <meta name="author" content=""/>
+    <title>Gage Talk</title>
+    <!-- stylesheet-->
+    <!-- jquery-->
+    <script src="javascripts/angular.js"></script>
+    <link rel="stylesheet" href="stylesheets/jquery-ui.min.css"/>
+    <!-- bootstrap-->
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="bootstrap/css/bootstrap-theme.min.css"/>
+    <!--<link rel="stylesheet/less" type="text/css" href="/stylesheets/style.less">
+    -->
+</head>
+<body>
+<div class="container">
+    <nav role="navigation" class="navbar navbar-default">
+        <!-- Brand and toggle get grouped for better mobile display-->
+        <div class="navbar-header">
+            <button type="button" data-toggle="collapse" data-target=".navbar-ex1-collapse" class="navbar-toggle"><span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span></button><a href="/" class="navbar-brand"><%=title%></a>
+        </div>
+        <!-- Collect the nav links, forms, and other content for toggling-->
+        <div class="collapse navbar-collapse navbar-right navbar-ex1-collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="/"><%=subtitle1%></a></li>
+                <li class="active"><a href="/owner_manage"><%=subtitle2%></a></li>
+                <li><a href="/customer_manage"><%=subtitle3%></a></li>
+            </ul>
+        </div>
+        <!-- /.navbar-collapse-->
+    </nav>
+    <div id="content">
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="#add" data-toggle="tab">상점주 입력</a></li>
+            <li><a href="#info" data-toggle="tab">상점주 정보</a></li>
+        </ul>
+        <div class="tab-content">
+            <div id="add" class="tab-pane active"><br/>
+                <h3>상점주 입력</h3><br/>
+                <div class="form-group">
+                    <form role="form" action="/owner_manage/add" method="post" enctype="multipart/form-data" class="form">
+                        <p>
+                            <label for="mar_id">아이디</label>
+                            <input name="mar_id" type="text" placeholder="아이디" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="password">암호</label>
+                            <input name="password" type="password" placeholder="암호" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="mar_name">상점명</label>
+                            <input name="mar_name" type="text" placeholder="상점명" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="tel">전화번호</label>
+                            <input name="tel" type="text" placeholder="전화번호" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="phone">폰번호</label>
+                            <input name="phone" type="text" placeholder="폰번호" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="image">이미지 업로드</label>
+                            <input name="image" type="file" class="form-group-lg"/>
+                        </p>
+                        <p>
+                            <label for="email">이메일</label>
+                            <input name="email" type="text" placeholder="이메일" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="address">주소</label>
+                            <input name="address" type="text" placeholder="주소" class="form-control"/>
+                        </p>
+                        <p>
+                        <div id="combo-group" class="form-horizontal">
+                            <label for="category">카테고리&nbsp;</label>
+                            <select id="combo" name="category" data-btn-class="btn-success" class="my-combo">
+                                <option value="의류">의류</option>
+                                <option value="음식점">음식점</option>
+                                <option value="미용실">미용실</option>
+                                <option value="병원/약국">병원/약국</option>
+                                <option value="화장품">화장품</option>
+                                <option value="노래방">노래방</option>
+                                <option value="컴퓨터">컴퓨터</option>
+                                <option value="커피">커피</option>
+                                <option value="술">술</option>
+                                <option value="전자제품">전자제품</option>
+                                <option value="서비스">서비스</option>
+                            </select>
+                        </div>
+                        </p>
+                        <p>
+                            <label for="homepage">홈페이지</label>
+                            <input name="homepage" type="text" placeholder="홈페이지" class="form-control"/>
+                        </p>
+                        <p>
+                            <label for="description">설명</label>
+                            <textarea name="description" placeholder="상점 설명" class="form-control"></textarea>
+                        </p><br/>
+                        <button type="submit" aria-label="Left Align" class="btn btn-default">상점 추가&nbsp;&nbsp;<span aria-hidden="true" class="glyphicon glyphicon-plus"></span></button>
+                    </form><br/><br/><br/>
+                </div>
+            </div>
+            <div id="info" class="tab-pane"><br/>
+                <h3>상점주 정보</h3><br/>
+                <p>상점주 정보</p>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- less.min.js 세팅-->
+<script src="javascripts_lib/less.min.js" type="text/javascript"></script>
+<script src="javascripts_lib/jquery-1.11.2.min.js"></script>
+<script src="javascripts_lib/jquery-ui.min.js"></script>
+<script src="angular.min.js"></script>
+<script src="bootstrap/js/bootstrap.min.js"></script>
+<script src="javascripts/otherpage.js"></script>
+</body>
