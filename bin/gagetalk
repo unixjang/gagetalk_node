@@ -10,7 +10,7 @@ var connection = require('../database/mysql_pool');
 var script_func = require('../global_func/script_func');
 
 
-app.set('port', process.env.PORT || 3000);
+app.set('port', process.env.PORT || 3001);
 
 var app_soc = http.createServer(app).listen(app.get('port'), function() {
     // debug('Express server listening on port ' + server.address().port);
